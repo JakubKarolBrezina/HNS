@@ -1,33 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-def enhance_low_light(frame):
-    # BGR → HSV
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-
-    # zvýšenie jasu
-    v = cv2.add(v, 40)  # pridá 40 jasu
-
-    # saturácia jemne hore (voliteľné)
-    s = cv2.add(s, 15)
-
-    # HSV → BGR
-    hsv_enhanced = cv2.merge([h, s, v])
-    frame = cv2.cvtColor(hsv_enhanced, cv2.COLOR_HSV2BGR)
-
-    # zlepšenie kontrastu pomocou CLAHE
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    cl = clahe.apply(l)
-    lab = cv2.merge((cl, a, b))
-    frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-
-    # jemný odšum (voliteľné)
-    frame = cv2.GaussianBlur(frame, (3, 3), 0)
-
-    return frame
-
 
 import os
 os.environ["GLOG_minloglevel"] = "2"
@@ -40,7 +12,6 @@ import numpy as np
 import requests
 import platform
 from dataclasses import dataclass
-from typing import Optional, List, Tuple, Dict
 
 # MediaPipe Tasks (vision)
 from mediapipe.tasks import python as mp_python
@@ -48,7 +19,36 @@ from mediapipe.tasks.python import vision as mp_vision
 from mediapipe import Image as mp_Image, ImageFormat as mp_ImageFormat
 
 # ============================================================
-# VÝBER ZDROJA VIDEA (1 – notebook, 2 – externá kamera, 3 – video)
+# LOW-LIGHT ENHANCE (niečo medzi B a C)
+# ============================================================
+
+def enhance_low_light(frame):
+    # BGR → HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+
+    # jemné zvýšenie jasu a saturácie (trochu slabšie kvôli FPS)
+    v = cv2.add(v, 25)
+    s = cv2.add(s, 10)
+
+    hsv_enhanced = cv2.merge([h, s, v])
+    frame = cv2.cvtColor(hsv_enhanced, cv2.COLOR_HSV2BGR)
+
+    # CLAHE na L kanál (kontrast, ale nie extrémne ťažké)
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(6, 6))
+    cl = clahe.apply(l)
+    lab = cv2.merge((cl, a, b))
+    frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+
+    # jemné vyhladenie
+    frame = cv2.GaussianBlur(frame, (3, 3), 0)
+
+    return frame
+
+# ============================================================
+# VÝBER ZDROJA VIDEA
 # ============================================================
 
 def select_video_source():
@@ -62,16 +62,13 @@ def select_video_source():
 
     if choice == "1":
         return 0, None
-
     elif choice == "2":
         return 1, None
-
     elif choice == "3":
         path = input("Zadaj cestu k videu: ").strip()
         if not os.path.exists(path):
             raise FileNotFoundError("Video súbor neexistuje.")
         return path, path
-
     else:
         # fallback: notebook kamera
         return 0, None
@@ -137,7 +134,7 @@ class AppConfig:
     max_persons: int = 5
     draw_thick: int = 2
     hand_offset: float = 0.03
-    process_every_n: int = 1   # detekcia na každom frame pre lepšie chytanie
+    process_every_n: int = 2   # ⚡ detekcia každý 2. frame pre viac FPS
 
 # ============================================================
 # KĹBY
@@ -299,6 +296,7 @@ def main():
 
     win = "MediaPipe Pose"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+    fullscreen(win)
 
     f_px = None
     last_W = None
@@ -317,18 +315,23 @@ def main():
     )
     landmarker = mp_vision.PoseLandmarker.create_from_options(opts)
 
-    prev_t = time.time()
-    fullscreen(win)
-
-    print("READY – stlač Q pre ukončenie")
-
     smooth_dist = None
     smooth_height = None
+
+    # FPS meranie
+    prev_t = time.time()
+    fps_sum = 0.0
+    fps_count = 0
+
+    print("READY – stlač Q pre ukončenie")
 
     while True:
         ok, frame = cap.read()
         if not ok:
             break
+
+        # úprava obrazu pre slabé svetlo (niečo medzi kvalitou a FPS)
+        frame = enhance_low_light(frame)
 
         H, W = frame.shape[:2]
 
@@ -340,7 +343,6 @@ def main():
 
         # ---- MediaPipe každé N frame-y ----
         if frame_idx % cfg.process_every_n == 0 or last_result is None:
-            # 🔴 FIX: OpenCV -> BGR, MediaPipe -> RGB
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = mp_Image(image_format=mp_ImageFormat.SRGB, data=rgb)
             result = landmarker.detect_for_video(img, timestamp_ms)
@@ -387,12 +389,20 @@ def main():
             )
 
         # FPS
-        now=time.time()
+        now = time.time()
         dt = now - prev_t
+        prev_t = now
         fps = 1.0/dt if dt > 0 else 0.0
-        prev_t=now
+
+        fps_sum += fps
+        fps_count += 1
+        fps_avg = fps_sum / fps_count if fps_count > 0 else 0.0
+
         cv2.putText(frame,f"FPS: {fps:.1f}",(20,80),
             cv2.FONT_HERSHEY_SIMPLEX,1.0,(255,150,0),2)
+
+        cv2.putText(frame,f"AVG FPS: {fps_avg:.1f}",(20,120),
+            cv2.FONT_HERSHEY_SIMPLEX,1.0,(0,200,255),2)
 
         cv2.imshow(win, frame)
 

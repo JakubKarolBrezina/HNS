@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-os.environ["GLOG_minloglevel"] = "2"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
 import time
 import math
 from dataclasses import dataclass
@@ -15,21 +12,24 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+# Disable spam logs
+os.environ["GLOG_minloglevel"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-# ==============================
-# ---------- KONFIG -----------
-# ==============================
+
+# ==========================
+# KONFIG
+# ==========================
 
 @dataclass
 class AppConfig:
     model_path: str = "yolo11n-pose.pt"
-    cam_index: int = 0
     fov_deg: float = 60.0
     real_shoulder_m: float = 0.42
-    conf_thr: float = 0.6
+    conf_thr: float = 0.60
     safe_zone_m: float = 1.0
     warn_zone_m: float = 2.0
-    draw_thick: int = 2
+    draw_thick: int = 1
     mqtt_host: str = "127.0.0.1"
     mqtt_port: int = 1883
     topic_state: str = "robot/safety/state"
@@ -51,9 +51,9 @@ class TrackState:
     last_fall_time: float = 0.0
 
 
-# ==============================
-# ---------- KEYPOINTS ---------
-# ==============================
+# ==========================
+# POSE MATRICE
+# ==========================
 
 KP = {
     "nose": 0, "leye": 1, "reye": 2, "lear": 3, "rear": 4,
@@ -72,98 +72,78 @@ SKELETON = [
 ]
 
 
-# ==============================
-# --------- UTIL FUNKCIE -------
-# ==============================
+# ==========================
+# UTIL
+# ==========================
 
 def focal_len_px(img_w, fov_deg):
-    return (img_w/2) / math.tan(math.radians(fov_deg/2))
+    return (img_w / 2) / math.tan(math.radians(fov_deg / 2))
 
 
 def shoulder_px(k):
-    L = k[KP["lsho"], 0]
-    R = k[KP["rsho"], 0]
+    L = k[5, 0]
+    R = k[6, 0]
     if np.isnan(L) or np.isnan(R):
         return 0
     return abs(R - L)
 
 
 def estimate_distance_m(shoulder_px_val, f_px, real_shoulder_m):
-    if shoulder_px_val <= 5:
+    if shoulder_px_val <= 10:
         return None
     return (f_px * real_shoulder_m) / shoulder_px_val
 
 
 def estimate_height_m(k, s_px, real_shoulder_m):
-    if s_px <= 5:
+    if s_px <= 10:
         return None
-
-    top = k[KP["nose"], 1]
-    ankles = [k[KP["lank"], 1], k[KP["rank"], 1]]
+    top = k[0, 1]
+    ankles = [k[15, 1], k[16, 1]]
     ankles = [x for x in ankles if not np.isnan(x)]
     if not ankles:
         return None
-
     px_h = max(ankles) - top
     if px_h <= 0:
         return None
-
     return px_h * (real_shoulder_m / s_px)
 
 
-# ===================================================
-# 🟩 HAND UP – (RIGHT, LEFT, BOTH)
-# ===================================================
-
 def hand_up_both(k):
     try:
-        r_sh = k[KP["rsho"], 1]
-        r_wr = k[KP["rwri"], 1]
-        l_sh = k[KP["lsho"], 1]
-        l_wr = k[KP["lwri"], 1]
-
-        if any(np.isnan(v) for v in [r_sh, r_wr, l_sh, l_wr]):
-            return None
-
-        R = r_wr < r_sh - 40
-        L = l_wr < l_sh - 40
-
-        if R and L:
-            return "both"
-        if R:
-            return "right"
-        if L:
-            return "left"
+        r = k[10, 1] < k[6, 1] - 40
+        l = k[9, 1] < k[5, 1] - 40
+        if r and l: return "both"
+        if r: return "right"
+        if l: return "left"
         return None
-
     except:
         return None
 
 
 def torso_tilt_deg(k):
     try:
-        sx = (k[5,0] + k[6,0]) / 2
-        sy = (k[5,1] + k[6,1]) / 2
-        hx = (k[11,0] + k[12,0]) / 2
-        hy = (k[11,1] + k[12,1]) / 2
+        sx = (k[5, 0] + k[6, 0]) / 2
+        sy = (k[5, 1] + k[6, 1]) / 2
+        hx = (k[11, 0] + k[12, 0]) / 2
+        hy = (k[11, 1] + k[12, 1]) / 2
         return abs(math.degrees(math.atan2(sx - hx, sy - hy)))
     except:
         return None
 
 
-def decide_safety(dist_m, cfg):
-    if dist_m is None:
+def decide_safety(dist, cfg):
+    if dist is None:
         return Safety.GO
-    if dist_m < cfg.safe_zone_m:
+    if dist < cfg.safe_zone_m:
         return Safety.STOP
-    if dist_m < cfg.warn_zone_m:
+    if dist < cfg.warn_zone_m:
         return Safety.SLOW
     return Safety.GO
 
 
-# ==============================
-# --------- FALL FILTER --------
-# ==============================
+# ==========================
+# FALL DETECTION
+# ==========================
 
 def update_fall_state(ts, height_m, tilt, bbox, now):
     if height_m is None or tilt is None:
@@ -172,16 +152,14 @@ def update_fall_state(ts, height_m, tilt, bbox, now):
         ts.prev_time = now
         return False
 
-    x1,y1,x2,y2 = bbox
-    w = max(1,x2-x1)
-    h = max(1,y2-y1)
-    horiz = w/h
+    x1, y1, x2, y2 = bbox
+    horiz = (x2 - x1) / max((y2 - y1), 1)
 
     if tilt < 30:
         if ts.standing_height_m is None:
             ts.standing_height_m = height_m
         else:
-            ts.standing_height_m = ts.standing_height_m*0.9 + height_m*0.1
+            ts.standing_height_m = ts.standing_height_m * 0.9 + height_m * 0.1
 
     if ts.standing_height_m is None:
         ts.prev_height_m = height_m
@@ -191,23 +169,17 @@ def update_fall_state(ts, height_m, tilt, bbox, now):
     too_low = height_m < 0.6 * ts.standing_height_m
     very_low = height_m < 0.45 * ts.standing_height_m
 
+    dt = now - ts.prev_time
     big_drop = False
-    if ts.prev_height_m is not None:
-        dt = now - ts.prev_time
-        if dt>0:
-            rel = (ts.prev_height_m - height_m) / max(ts.prev_height_m,1e-6)
-            if dt<0.7 and rel>0.35:
-                big_drop = True
+    if ts.prev_height_m and dt < 0.7:
+        if (ts.prev_height_m - height_m) / max(ts.prev_height_m, 1e-6) > 0.35:
+            big_drop = True
 
-    suspicious = (
-        tilt > 75 and
-        horiz > 1.3 and
-        (very_low or (too_low and big_drop))
-    )
+    suspicious = (tilt > 75 and horiz > 1.3 and (very_low or (too_low and big_drop)))
 
-    ts.fall_sus_frames = ts.fall_sus_frames+1 if suspicious else max(0, ts.fall_sus_frames-1)
+    ts.fall_sus_frames = ts.fall_sus_frames + 1 if suspicious else max(0, ts.fall_sus_frames - 1)
 
-    if ts.fall_sus_frames >= 10 and now - ts.last_fall_time > 3:
+    if ts.fall_sus_frames >= 8 and now - ts.last_fall_time > 3:
         ts.last_fall_time = now
         ts.fall_sus_frames = 0
         return True
@@ -217,145 +189,104 @@ def update_fall_state(ts, height_m, tilt, bbox, now):
     return False
 
 
-# ==============================
-# ------------ MQTT ------------
-# ==============================
+# ==========================
+# DRAW FAST
+# ==========================
 
-class MqttClient:
-    def __init__(self, host, port):
-        self.client = None
-        try:
-            import paho.mqtt.client as mqtt
-            if host:
-                c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-                c.connect(host, port, 60)
-                c.loop_start()
-                self.client = c
-        except:
-            print("⚠ MQTT disabled")
+def draw_pose_fast(f, k):
+    for x, y in k:
+        if not (np.isnan(x) or np.isnan(y)):
+            cv2.circle(f, (int(x), int(y)), 2, (0, 0, 255), -1)
 
-    def publish(self, t, msg):
-        if self.client:
-            self.client.publish(t, msg)
-
-    def close(self):
-        if self.client:
-            self.client.loop_stop()
-            self.client.disconnect()
+    for a, b in SKELETON:
+        xa, ya = k[a]
+        xb, yb = k[b]
+        if not (np.isnan(xa) or np.isnan(ya) or np.isnan(xb) or np.isnan(yb)):
+            cv2.line(f, (int(xa), int(ya)), (int(xb), int(yb)), (255, 255, 255), 1)
 
 
-# ==============================
-# ----------- DRAW -------------
-# ==============================
-
-def draw_pose(f, k, thick=2):
-    for x,y in k:
-        if not np.isnan(x) and not np.isnan(y):
-            cv2.circle(f,(int(x),int(y)),4,(0,0,255),-1)
-
-    for a,b in SKELETON:
-        xa,ya = k[a]
-        xb,yb = k[b]
-        if not np.isnan(xa) and not np.isnan(ya) and not np.isnan(xb) and not np.isnan(yb):
-            cv2.line(f,(int(xa),int(ya)),(int(xb),int(yb)),(255,255,255),thick)
-
-
-# ==============================
-# ------------- MAIN -----------
-# ==============================
+# ==========================
+# MAIN
+# ==========================
 
 def main():
+    print("Vyber zdroj:")
+    print("1 – Interná kamera")
+    print("2 – Externá kamera")
+    print("3 – Video súbor")
+    ch = input("Zadaj 1/2/3: ").strip()
 
-    # ----- INTERAKTÍVNY VÝBER ZDROJA -----
-    print("Vyber zdroj videa:")
-    print("  1 – Interná kamera (notebook/PC)")
-    print("  2 – Externá USB kamera")
-    print("  3 – Video súbor")
-    choice = input("Zadaj 1/2/3 a stlač Enter: ").strip()
-
-    source = None
-    video_path = None
-    cam_index = 0
-
-    if choice == "1":
-        source = "camera"
-        cam_index = 0
-        print("📷 Zvolená interná kamera (index 0).")
-    elif choice == "2":
-        source = "camera"
-        cam_index = 1
-        print("📷 Zvolená externá kamera (index 1).")
-    elif choice == "3":
-        source = "video"
-        video_path = input("Zadaj cestu k video súboru: ").strip()
-        print(f"🎥 Zvolený video súbor: {video_path}")
+    if ch == "1":
+        cap = cv2.VideoCapture(0)
+    elif ch == "2":
+        cap = cv2.VideoCapture(1)
     else:
-        print("⚠ Neplatná voľba, používam predvolenú internú kameru (0).")
-        source = "camera"
-        cam_index = 0
-
-    cfg = AppConfig(cam_index=cam_index)
-    mqtt = MqttClient(cfg.mqtt_host, cfg.mqtt_port)
-
-    model = YOLO(cfg.model_path)
-
-    # VIDEO vs CAMERA (s jemnou optimalizáciou kamery)
-    if source == "video":
-        print(f"🎥 OFFLINE MODE – Loading video: {video_path}")
-        cap = cv2.VideoCapture(video_path)
-    else:
-        print(f"📷 ONLINE MODE – Using camera index {cfg.cam_index}")
-        cap = cv2.VideoCapture(cfg.cam_index, cv2.CAP_DSHOW)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        vid = input("Cesta k videu: ").strip()
+        cap = cv2.VideoCapture(vid)
 
     if not cap.isOpened():
-        print("❌ Kamera / Video sa nedalo otvoriť.")
+        print("KAMERA ERROR")
         return
 
-    win="YOLO-FULLSCREEN"
-    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    # --- zväčšené okno ---
+    window_name = "FAST-DETECTION"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, 1280, 720)
 
-    track_states: Dict[int,TrackState] = {}
-    prev_t = time.time()
+    # --- rýchla kamera ---
+    cap.set(3, 640)
+    cap.set(4, 360)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-    print("SYSTEM ONLINE – stlač Q pre ukončenie.\n")
+    cfg = AppConfig()
+    model = YOLO(cfg.model_path)
+
+    track_states = {}
+    prev_time = time.time()
+    fps = 0
+
+    detect_every = 2
+    frame_id = 0
+    last_results = None
+
+    # FPS AVERAGE COUNTERS
+    total_fps = 0.0
+    frame_counter = 0
+
+    print("SYSTEM ONLINE\n")
 
     while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-        ok, frame = cap.read()
-        if not ok:
-            if source == "video":
-                print("🔁 Koniec videa.")
-                break
-            continue
-
-        H,W = frame.shape[:2]
-        f_px = focal_len_px(W, cfg.fov_deg)
-
-        # ✅ YOLO – rovnaká logika, len menší vstup (imgsz=640) pre vyššie FPS
-        results = model.track(
-            frame,
-            persist=True,
-            conf=cfg.conf_thr,
-            classes=[0],
-            verbose=False,
-            imgsz=640
-        )
+        frame_id += 1
 
         now = time.time()
-        fps = 1.0 / max(now-prev_t,1e-6)
-        prev_t = now
+        fps = 1 / (now - prev_time + 1e-6)
+        prev_time = now
 
-        if results is None or len(results)==0:
-            cv2.putText(frame, "NO DETECTIONS", (50,100),
-                        cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,255),2)
-            cv2.putText(frame,f"FPS:{fps:.1f}",(20,80),
-                        cv2.FONT_HERSHEY_SIMPLEX,1,(0,180,255),2)
-            cv2.imshow(win,frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+        # Add to average
+        total_fps += fps
+        frame_counter += 1
+
+        W = frame.shape[1]
+        fpx = focal_len_px(W, cfg.fov_deg)
+
+        # DETECT každé 2 framy
+        if frame_id % detect_every == 0:
+            last_results = model.predict(
+                frame, conf=cfg.conf_thr, imgsz=320, verbose=False
+            )
+
+        results = last_results
+        if results is None or len(results) == 0:
+            cv2.putText(frame, f"FPS: {fps:.1f}",
+                        (20, 60), cv2.FONT_HERSHEY_SIMPLEX,
+                        1.2, (0, 255, 0), 3)
+
+            cv2.imshow(window_name, frame)
+            if cv2.waitKey(1) == ord("q"):
                 break
             continue
 
@@ -363,78 +294,63 @@ def main():
         boxes = r.boxes
         kpts = r.keypoints
 
-        if boxes is not None and kpts is not None:
+        for i in range(len(boxes)):
+            if int(boxes.cls[i].item()) != 0:
+                continue
 
-            for i in range(len(boxes)):
+            tid = i + 1
+            x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy().astype(int)
 
-                if int(boxes.cls[i].item()) != 0:
-                    continue
+            kxy = kpts.xy[i].cpu().numpy()
+            kxy = np.where(np.isfinite(kxy), kxy, np.nan)
 
-                track_id = int(boxes.id[i].item()) if boxes.id is not None else i+1
+            draw_pose_fast(frame, kxy)
 
-                x1,y1,x2,y2 = boxes.xyxy[i].cpu().numpy().astype(int)
+            s = shoulder_px(kxy)
+            dist = estimate_distance_m(s, fpx, cfg.real_shoulder_m)
+            height = estimate_height_m(kxy, s, cfg.real_shoulder_m)
+            tilt = torso_tilt_deg(kxy)
+            hand = hand_up_both(kxy)
+            state = decide_safety(dist, cfg)
 
-                kxy = kpts.xy[i].cpu().numpy()
-                kxy = np.where(np.isfinite(kxy), kxy, np.nan)
+            ts = track_states.setdefault(tid, TrackState())
+            fall = update_fall_state(ts, height, tilt, (x1, y1, x2, y2), now)
 
-                draw_pose(frame, kxy, cfg.draw_thick)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f"ID:{tid} D:{dist}",
+                        (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6, (0, 255, 255), 2)
 
-                s_px = shoulder_px(kxy)
-                dist = estimate_distance_m(s_px, f_px, cfg.real_shoulder_m)
-                height = estimate_height_m(kxy, s_px, cfg.real_shoulder_m)
-                tilt = torso_tilt_deg(kxy)
-                hand = hand_up_both(kxy)
-                state = decide_safety(dist, cfg)
+            if hand:
+                cv2.putText(frame, hand.upper() + " HAND",
+                            (x1, y1 - 30), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7, (
+0, 200, 255), 2)
 
-                ts = track_states.setdefault(track_id, TrackState())
+            if fall:
+                cv2.putText(frame, "FALL!",
+                            (x1, y1 - 50), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.9, (0, 0, 255), 3)
 
-                fall = update_fall_state(ts, height, tilt, (x1,y1,x2,y2), now)
+        # FPS DISPLAY
+        cv2.putText(frame, f"FPS: {fps:.1f}",
+                    (20, 60), cv2.FONT_HERSHEY_SIMPLEX,
+                    1.2, (0, 255, 0), 3)
 
-                cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+        cv2.imshow(window_name, frame)
 
-                info = f"ID:{track_id}"
-                if height is not None: info+=f" H:{height:.2f}"
-                if dist is not None: info+=f" D:{dist:.2f}"
-                if tilt is not None: info+=f" tilt:{tilt:.0f}"
-
-                cv2.putText(frame, info, (x1,y1-10),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.6,(0,255,255),2)
-
-                # HAND EVENTS
-                if hand == "right":
-                    cv2.putText(frame, "RIGHT HAND UP", (x1,y1-60),
-                        cv2.FONT_HERSHEY_SIMPLEX,0.8,(0,165,255),2)
-                    mqtt.publish(cfg.topic_event, f"{track_id}:RIGHT_UP")
-
-                elif hand == "left":
-                    cv2.putText(frame, "LEFT HAND UP", (x1,y1-60),
-                        cv2.FONT_HERSHEY_SIMPLEX,0.8,(0,165,255),2)
-                    mqtt.publish(cfg.topic_event, f"{track_id}:LEFT_UP")
-
-                elif hand == "both":
-                    cv2.putText(frame, "BOTH HANDS UP", (x1,y1-60),
-                        cv2.FONT_HERSHEY_SIMPLEX,0.8,(0,255,255),2)
-                    mqtt.publish(cfg.topic_event, f"{track_id}:BOTH_UP")
-
-                # FALL EVENT
-                if fall:
-                    cv2.putText(frame,"FALL DETECTED!",(x1,y1-40),
-                        cv2.FONT_HERSHEY_SIMPLEX,0.9,(0,0,255),3)
-                    mqtt.publish(cfg.topic_event, f"{track_id}:FALL")
-
-                mqtt.publish(cfg.topic_state, f"{track_id}:{state.value}")
-
-        cv2.putText(frame,f"FPS:{fps:.1f}",(20,80),
-            cv2.FONT_HERSHEY_SIMPLEX,1,(0,180,255),2)
-
-        cv2.imshow(win,frame)
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        if cv2.waitKey(1) == ord("q"):
             break
+
+    # PRINT AVERAGE FPS
+    if frame_counter > 0:
+        avg_fps = total_fps / frame_counter
+        print("\n============================")
+        print(f"Priemerné FPS: {avg_fps:.2f}")
+        print("============================\n")
 
     cap.release()
     cv2.destroyAllWindows()
-    mqtt.close()
 
 
 if __name__ == "__main__":
