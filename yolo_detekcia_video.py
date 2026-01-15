@@ -270,7 +270,7 @@ def main():
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                         (255, 255, 0), 2)
 
-        cv2.putText(frame, f"FPS: {fps:.1f}", (20, 50),
+        cv2.putText(frame, f"PS: {fps:.1f}", (20, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2,
                     (0, 255, 0), 3)
 

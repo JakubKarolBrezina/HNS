@@ -353,7 +353,7 @@ def main():
 
         persons = result.pose_landmarks or []
 
-        cv2.putText(frame, f"People: {len(persons)}", (20,40),
+        cv2.putText(frame, f"Peoples: {len(persons)}", (20,40),
             cv2.FONT_HERSHEY_SIMPLEX,1.0,(0,255,255),2)
 
         for idx, kpts in enumerate(persons):
