@@ -4,36 +4,33 @@
 import os
 import time
 import math
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Dict
-
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from enum import Enum
+from dataclasses import dataclass
 
-# Disable spam logs
+# ==========================
+# SILENT LOGS
+# ==========================
 os.environ["GLOG_minloglevel"] = "2"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-
 # ==========================
-# KONFIG
+# CONFIG
 # ==========================
-
 @dataclass
 class AppConfig:
     model_path: str = "yolo11n-pose.pt"
+    conf_thr: float = 0.6
+    imgsz: int = 320
+    detect_every: int = 2
+
     fov_deg: float = 60.0
     real_shoulder_m: float = 0.42
-    conf_thr: float = 0.60
+
     safe_zone_m: float = 1.0
     warn_zone_m: float = 2.0
-    draw_thick: int = 1
-    mqtt_host: str = "127.0.0.1"
-    mqtt_port: int = 1883
-    topic_state: str = "robot/safety/state"
-    topic_event: str = "robot/safety/event"
 
 
 class Safety(Enum):
@@ -42,79 +39,83 @@ class Safety(Enum):
     STOP = "STOP"
 
 
-@dataclass
-class TrackState:
-    standing_height_m: Optional[float] = None
-    prev_height_m: Optional[float] = None
-    prev_time: float = 0.0
-    fall_sus_frames: int = 0
-    last_fall_time: float = 0.0
-
-
 # ==========================
-# POSE MATRICE
+# KEYPOINTS
 # ==========================
-
 KP = {
-    "nose": 0, "leye": 1, "reye": 2, "lear": 3, "rear": 4,
-    "lsho": 5, "rsho": 6, "lelb": 7, "relb": 8, "lwri": 9, "rwri": 10,
-    "lhip": 11, "rhip": 12, "lkne": 13, "rkne": 14, "lank": 15, "rank": 16
+    "nose": 0,
+    "lsho": 5, "rsho": 6,
+    "lwri": 9, "rwri": 10,
+    "lhip": 11, "rhip": 12,
+    "lank": 15, "rank": 16
 }
 
 SKELETON = [
-    (KP["lsho"], KP["lelb"]), (KP["lelb"], KP["lwri"]),
-    (KP["rsho"], KP["relb"]), (KP["relb"], KP["rwri"]),
-    (KP["lsho"], KP["rsho"]),
-    (KP["lhip"], KP["rhip"]),
-    (KP["lsho"], KP["lhip"]), (KP["rsho"], KP["rhip"]),
-    (KP["lhip"], KP["lkne"]), (KP["lkne"], KP["lank"]),
-    (KP["rhip"], KP["rkne"]), (KP["rkne"], KP["rank"])
+    (5, 7), (7, 9),
+    (6, 8), (8, 10),
+    (5, 6),
+    (11, 12),
+    (5, 11), (6, 12),
+    (11, 13), (13, 15),
+    (12, 14), (14, 16)
 ]
 
-
 # ==========================
-# UTIL
+# UTILS
 # ==========================
+def focal_len_px(w, fov):
+    return (w / 2) / math.tan(math.radians(fov / 2))
 
-def focal_len_px(img_w, fov_deg):
-    return (img_w / 2) / math.tan(math.radians(fov_deg / 2))
+
+def smooth(prev, new, alpha=0.2):
+    if new is None:
+        return prev
+    if prev is None:
+        return new
+    return prev * (1 - alpha) + new * alpha
+
+
+def smooth_kpts(prev, new, alpha=0.15):
+    if prev is None:
+        return new
+    return prev * (1 - alpha) + new * alpha
 
 
 def shoulder_px(k):
-    L = k[5, 0]
-    R = k[6, 0]
-    if np.isnan(L) or np.isnan(R):
+    l, r = k[KP["lsho"], 0], k[KP["rsho"], 0]
+    if np.isnan(l) or np.isnan(r):
         return 0
-    return abs(R - L)
+    return abs(r - l)
 
 
-def estimate_distance_m(shoulder_px_val, f_px, real_shoulder_m):
-    if shoulder_px_val <= 10:
+def estimate_distance(s_px, fpx, cfg):
+    if s_px < 15:
         return None
-    return (f_px * real_shoulder_m) / shoulder_px_val
+    return (fpx * cfg.real_shoulder_m) / s_px
 
 
-def estimate_height_m(k, s_px, real_shoulder_m):
-    if s_px <= 10:
-        return None
-    top = k[0, 1]
-    ankles = [k[15, 1], k[16, 1]]
-    ankles = [x for x in ankles if not np.isnan(x)]
-    if not ankles:
-        return None
-    px_h = max(ankles) - top
-    if px_h <= 0:
-        return None
-    return px_h * (real_shoulder_m / s_px)
+def decide_safety(dist, cfg):
+    if dist is None:
+        return Safety.GO
+    if dist < cfg.safe_zone_m:
+        return Safety.STOP
+    if dist < cfg.warn_zone_m:
+        return Safety.SLOW
+    return Safety.GO
 
 
-def hand_up_both(k):
+def hand_up(k):
     try:
-        r = k[10, 1] < k[6, 1] - 40
-        l = k[9, 1] < k[5, 1] - 40
-        if r and l: return "both"
-        if r: return "right"
-        if l: return "left"
+        sy = (k[KP["lsho"], 1] + k[KP["rsho"], 1]) / 2
+        left = k[KP["lwri"], 1] < sy - 30
+        right = k[KP["rwri"], 1] < sy - 30
+
+        if left and right:
+            return "BOTH HANDS"
+        if left:
+            return "LEFT HAND"
+        if right:
+            return "RIGHT HAND"
         return None
     except:
         return None
@@ -131,129 +132,61 @@ def torso_tilt_deg(k):
         return None
 
 
-def decide_safety(dist, cfg):
-    if dist is None:
-        return Safety.GO
-    if dist < cfg.safe_zone_m:
-        return Safety.STOP
-    if dist < cfg.warn_zone_m:
-        return Safety.SLOW
-    return Safety.GO
-
-
-# ==========================
-# FALL DETECTION
-# ==========================
-
-def update_fall_state(ts, height_m, tilt, bbox, now):
-    if height_m is None or tilt is None:
-        ts.fall_sus_frames = 0
-        ts.prev_height_m = height_m
-        ts.prev_time = now
-        return False
-
-    x1, y1, x2, y2 = bbox
-    horiz = (x2 - x1) / max((y2 - y1), 1)
-
-    if tilt < 30:
-        if ts.standing_height_m is None:
-            ts.standing_height_m = height_m
-        else:
-            ts.standing_height_m = ts.standing_height_m * 0.9 + height_m * 0.1
-
-    if ts.standing_height_m is None:
-        ts.prev_height_m = height_m
-        ts.prev_time = now
-        return False
-
-    too_low = height_m < 0.6 * ts.standing_height_m
-    very_low = height_m < 0.45 * ts.standing_height_m
-
-    dt = now - ts.prev_time
-    big_drop = False
-    if ts.prev_height_m and dt < 0.7:
-        if (ts.prev_height_m - height_m) / max(ts.prev_height_m, 1e-6) > 0.35:
-            big_drop = True
-
-    suspicious = (tilt > 75 and horiz > 1.3 and (very_low or (too_low and big_drop)))
-
-    ts.fall_sus_frames = ts.fall_sus_frames + 1 if suspicious else max(0, ts.fall_sus_frames - 1)
-
-    if ts.fall_sus_frames >= 8 and now - ts.last_fall_time > 3:
-        ts.last_fall_time = now
-        ts.fall_sus_frames = 0
-        return True
-
-    ts.prev_height_m = height_m
-    ts.prev_time = now
-    return False
-
-
-# ==========================
-# DRAW FAST
-# ==========================
-
-def draw_pose_fast(f, k):
+def draw_pose(frame, k):
     for x, y in k:
-        if not (np.isnan(x) or np.isnan(y)):
-            cv2.circle(f, (int(x), int(y)), 2, (0, 0, 255), -1)
+        if not np.isnan(x) and not np.isnan(y):
+            cv2.circle(frame, (int(x), int(y)), 4, (0, 0, 255), -1)
 
     for a, b in SKELETON:
         xa, ya = k[a]
         xb, yb = k[b]
-        if not (np.isnan(xa) or np.isnan(ya) or np.isnan(xb) or np.isnan(yb)):
-            cv2.line(f, (int(xa), int(ya)), (int(xb), int(yb)), (255, 255, 255), 1)
+        if not any(map(np.isnan, [xa, ya, xb, yb])):
+            cv2.line(frame, (int(xa), int(ya)), (int(xb), int(yb)),
+                     (255, 255, 255), 2)
 
 
 # ==========================
 # MAIN
 # ==========================
-
 def main():
     print("Vyber zdroj:")
     print("1 – Interná kamera")
     print("2 – Externá kamera")
     print("3 – Video súbor")
-    ch = input("Zadaj 1/2/3: ").strip()
 
+    ch = input("Zadaj 1/2/3: ").strip()
     if ch == "1":
         cap = cv2.VideoCapture(0)
     elif ch == "2":
         cap = cv2.VideoCapture(1)
     else:
-        vid = input("Cesta k videu: ").strip()
-        cap = cv2.VideoCapture(vid)
+        cap = cv2.VideoCapture(input("Cesta k videu: ").strip())
 
     if not cap.isOpened():
         print("KAMERA ERROR")
         return
 
-    # --- zväčšené okno ---
-    window_name = "FAST-DETECTION"
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(window_name, 1280, 720)
-
-    # --- rýchla kamera ---
     cap.set(3, 640)
     cap.set(4, 360)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
+    window = "PRO VISION"
+    cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window, 1280, 720)
+
     cfg = AppConfig()
     model = YOLO(cfg.model_path)
 
-    track_states = {}
-    prev_time = time.time()
-    fps = 0
-
-    detect_every = 2
     frame_id = 0
     last_results = None
+    prev_kpts = None
+    standing_height_px = None
 
-    # FPS AVERAGE COUNTERS
-    total_fps = 0.0
-    frame_counter = 0
+    prev_time = time.time()
+    total_fps = 0
+    frames = 0
 
-    print("SYSTEM ONLINE\n")
+    print("\nSYSTEM ONLINE\n")
 
     while True:
         ret, frame = cap.read()
@@ -261,93 +194,92 @@ def main():
             break
 
         frame_id += 1
-
         now = time.time()
         fps = 1 / (now - prev_time + 1e-6)
         prev_time = now
-
-        # Add to average
         total_fps += fps
-        frame_counter += 1
+        frames += 1
 
-        W = frame.shape[1]
-        fpx = focal_len_px(W, cfg.fov_deg)
+        fpx = focal_len_px(frame.shape[1], cfg.fov_deg)
 
-        # DETECT každé 2 framy
-        if frame_id % detect_every == 0:
+        if frame_id % cfg.detect_every == 0:
             last_results = model.predict(
-                frame, conf=cfg.conf_thr, imgsz=320, verbose=False
+                frame,
+                imgsz=cfg.imgsz,
+                conf=cfg.conf_thr,
+                verbose=False
             )
 
-        results = last_results
-        if results is None or len(results) == 0:
-            cv2.putText(frame, f"FPS: {fps:.1f}",
-                        (20, 60), cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2, (0, 255, 0), 3)
+        if last_results and len(last_results[0].boxes) > 0:
+            r = last_results[0]
 
-            cv2.imshow(window_name, frame)
-            if cv2.waitKey(1) == ord("q"):
-                break
-            continue
+            box = r.boxes.xyxy[0].cpu().numpy().astype(int)
 
-        r = results[0]
-        boxes = r.boxes
-        kpts = r.keypoints
+            k_raw = r.keypoints.xy[0].cpu().numpy()
+            k_raw = np.where(np.isfinite(k_raw), k_raw, np.nan)
 
-        for i in range(len(boxes)):
-            if int(boxes.cls[i].item()) != 0:
-                continue
+            prev_kpts = smooth_kpts(prev_kpts, k_raw)
+            k = prev_kpts
 
-            tid = i + 1
-            x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy().astype(int)
+            draw_pose(frame, k)
 
-            kxy = kpts.xy[i].cpu().numpy()
-            kxy = np.where(np.isfinite(kxy), kxy, np.nan)
+            ankles = [k[KP["lank"], 1], k[KP["rank"], 1]]
+            ankles = [a for a in ankles if not np.isnan(a)]
 
-            draw_pose_fast(frame, kxy)
+            fall = False
+            if ankles:
+                h_px = max(ankles) - k[KP["nose"], 1]
 
-            s = shoulder_px(kxy)
-            dist = estimate_distance_m(s, fpx, cfg.real_shoulder_m)
-            height = estimate_height_m(kxy, s, cfg.real_shoulder_m)
-            tilt = torso_tilt_deg(kxy)
-            hand = hand_up_both(kxy)
-            state = decide_safety(dist, cfg)
+                if standing_height_px is None:
+                    standing_height_px = h_px
+                else:
+                    standing_height_px = smooth(standing_height_px, h_px, 0.05)
 
-            ts = track_states.setdefault(tid, TrackState())
-            fall = update_fall_state(ts, height, tilt, (x1, y1, x2, y2), now)
+                ratio = h_px / max(standing_height_px, 1)
+                tilt = torso_tilt_deg(k)
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, f"ID:{tid} D:{dist}",
-                        (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6, (0, 255, 255), 2)
+                bw = box[2] - box[0]
+                bh = box[3] - box[1]
+
+                fall = (
+                    tilt is not None and
+                    tilt > 75 and
+                    ratio < 0.55 and
+                    bw / max(bh, 1) > 1.3
+                )
+
+            s_px = shoulder_px(k)
+            dist = estimate_distance(s_px, fpx, cfg)
+            safety = decide_safety(dist, cfg)
+            hand = hand_up(k)
+
+            cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]),
+                          (0, 255, 0), 2)
 
             if hand:
-                cv2.putText(frame, hand.upper() + " HAND",
-                            (x1, y1 - 30), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.7, (
-0, 200, 255), 2)
+                cv2.putText(frame, hand, (box[0], box[1] - 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 200, 255), 2)
 
             if fall:
-                cv2.putText(frame, "FALL!",
-                            (x1, y1 - 50), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.9, (0, 0, 255), 3)
+                cv2.putText(frame, "FALL!", (box[0], box[1] - 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9,
+                            (0, 0, 255), 3)
 
-        # FPS DISPLAY
-        cv2.putText(frame, f"FPS: {fps:.1f}",
-                    (20, 60), cv2.FONT_HERSHEY_SIMPLEX,
-                    1.2, (0, 255, 0), 3)
+            cv2.putText(frame, safety.value, (box[0], box[3] + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                        (255, 255, 0), 2)
 
-        cv2.imshow(window_name, frame)
+        cv2.putText(frame, f"FPS: {fps:.1f}", (20, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2,
+                    (0, 255, 0), 3)
 
+        cv2.imshow(window, frame)
         if cv2.waitKey(1) == ord("q"):
             break
 
-    # PRINT AVERAGE FPS
-    if frame_counter > 0:
-        avg_fps = total_fps / frame_counter
-        print("\n============================")
-        print(f"Priemerné FPS: {avg_fps:.2f}")
-        print("============================\n")
+    if frames:
+        print(f"\nPriemerné FPS: {total_fps / frames:.2f}\n")
 
     cap.release()
     cv2.destroyAllWindows()
