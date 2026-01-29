@@ -104,11 +104,13 @@ def decide_safety(dist, cfg):
     return Safety.GO
 
 
-def hand_up(k):
+def hand_up(k, body_h):
     try:
         sy = (k[KP["lsho"], 1] + k[KP["rsho"], 1]) / 2
-        left = k[KP["lwri"], 1] < sy - 30
-        right = k[KP["rwri"], 1] < sy - 30
+        thresh = 0.15 * body_h
+
+        left = k[KP["lwri"], 1] < sy - thresh
+        right = k[KP["rwri"], 1] < sy - thresh
 
         if left and right:
             return "BOTH-HANDS"
@@ -117,7 +119,7 @@ def hand_up(k):
         if right:
             return "RIGHT-HAND"
         return None
-    except:
+    except Exception:
         return None
 
 
@@ -128,7 +130,7 @@ def torso_tilt_deg(k):
         hx = (k[11, 0] + k[12, 0]) / 2
         hy = (k[11, 1] + k[12, 1]) / 2
         return abs(math.degrees(math.atan2(sx - hx, sy - hy)))
-    except:
+    except Exception:
         return None
 
 
@@ -155,12 +157,7 @@ def main():
     print("3 – Video súbor")
 
     ch = input("Zadaj 1/2/3: ").strip()
-    if ch == "1":
-        cap = cv2.VideoCapture(0)
-    elif ch == "2":
-        cap = cv2.VideoCapture(1)
-    else:
-        cap = cv2.VideoCapture(input("Cesta k videu: ").strip())
+    cap = cv2.VideoCapture(0 if ch == "1" else 1 if ch == "2" else input("Cesta k videu: ").strip())
 
     if not cap.isOpened():
         print("KAMERA ERROR")
@@ -181,12 +178,14 @@ def main():
     last_results = None
     prev_kpts = None
     standing_height_px = None
+    fall_counter = 0
 
     prev_time = time.time()
-    total_fps = 0
-    frames = 0
+    fps = 0
 
     print("\nSYSTEM ONLINE\n")
+
+    fpx = None
 
     while True:
         ret, frame = cap.read()
@@ -194,92 +193,85 @@ def main():
             break
 
         frame_id += 1
-        now = time.time()
-        fps = 1 / (now - prev_time + 1e-6)
-        prev_time = now
-        total_fps += fps
-        frames += 1
 
-        fpx = focal_len_px(frame.shape[1], cfg.fov_deg)
+        if frame_id % 10 == 0:
+            now = time.time()
+            fps = 10 / (now - prev_time + 1e-6)
+            prev_time = now
+
+        if fpx is None:
+            fpx = focal_len_px(frame.shape[1], cfg.fov_deg)
 
         if frame_id % cfg.detect_every == 0:
             last_results = model.predict(
                 frame,
                 imgsz=cfg.imgsz,
                 conf=cfg.conf_thr,
-                verbose=False
+                verbose=False,
+                device=0,
+                half=True
             )
 
-        if last_results and len(last_results[0].boxes) > 0:
+        if last_results and len(last_results) > 0 and last_results[0].boxes is not None:
             r = last_results[0]
+            if len(r.boxes) > 0:
+                areas = (r.boxes.xyxy[:, 2] - r.boxes.xyxy[:, 0]) * \
+                        (r.boxes.xyxy[:, 3] - r.boxes.xyxy[:, 1])
+                idx = areas.argmax().item()
 
-            box = r.boxes.xyxy[0].cpu().numpy().astype(int)
+                box = r.boxes.xyxy[idx].cpu().numpy().astype(int)
+                k_raw = r.keypoints.xy[idx].cpu().numpy()
+                k_raw = np.where(np.isfinite(k_raw), k_raw, np.nan)
 
-            k_raw = r.keypoints.xy[0].cpu().numpy()
-            k_raw = np.where(np.isfinite(k_raw), k_raw, np.nan)
+                prev_kpts = smooth_kpts(prev_kpts, k_raw)
+                k = prev_kpts
 
-            prev_kpts = smooth_kpts(prev_kpts, k_raw)
-            k = prev_kpts
+                draw_pose(frame, k)
 
-            draw_pose(frame, k)
+                nose_y = k[KP["nose"], 1]
+                ankles = [k[KP["lank"], 1], k[KP["rank"], 1]]
+                ankles = [a for a in ankles if not np.isnan(a)]
 
-            ankles = [k[KP["lank"], 1], k[KP["rank"], 1]]
-            ankles = [a for a in ankles if not np.isnan(a)]
+                fall = False
+                body_h = None
 
-            fall = False
-            if ankles:
-                h_px = max(ankles) - k[KP["nose"], 1]
+                if ankles and not np.isnan(nose_y):
+                    body_h = max(ankles) - nose_y
+                    standing_height_px = smooth(standing_height_px, body_h, 0.05)
+                    ratio = body_h / max(standing_height_px, 1)
+                    tilt = torso_tilt_deg(k)
 
-                if standing_height_px is None:
-                    standing_height_px = h_px
-                else:
-                    standing_height_px = smooth(standing_height_px, h_px, 0.05)
+                    bw = box[2] - box[0]
+                    bh = box[3] - box[1]
 
-                ratio = h_px / max(standing_height_px, 1)
-                tilt = torso_tilt_deg(k)
+                    fall = tilt and tilt > 75 and ratio < 0.55 and bw / max(bh, 1) > 1.3
 
-                bw = box[2] - box[0]
-                bh = box[3] - box[1]
+                fall_counter = fall_counter + 1 if fall else max(0, fall_counter - 1)
+                fall = fall_counter >= 3
 
-                fall = (
-                    tilt is not None and
-                    tilt > 75 and
-                    ratio < 0.55 and
-                    bw / max(bh, 1) > 1.3
-                )
+                dist = estimate_distance(shoulder_px(k), fpx, cfg)
+                safety = decide_safety(dist, cfg)
+                hand = hand_up(k, body_h if body_h else 200)
 
-            s_px = shoulder_px(k)
-            dist = estimate_distance(s_px, fpx, cfg)
-            safety = decide_safety(dist, cfg)
-            hand = hand_up(k)
+                cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
 
-            cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]),
-                          (0, 255, 0), 2)
+                if hand:
+                    cv2.putText(frame, hand, (box[0], box[1] - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2)
 
-            if hand:
-                cv2.putText(frame, hand, (box[0], box[1] - 20),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-                            (0, 200, 255), 2)
+                if fall:
+                    cv2.putText(frame, "FALL!", (box[0], box[1] - 50),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 3)
 
-            if fall:
-                cv2.putText(frame, "FALL!", (box[0], box[1] - 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-                            (0, 0, 255), 3)
+                cv2.putText(frame, safety.value, (box[0], box[3] + 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
-            cv2.putText(frame, safety.value, (box[0], box[3] + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                        (255, 255, 0), 2)
-
-        cv2.putText(frame, f"PS: {fps:.1f}", (20, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.2,
-                    (0, 255, 0), 3)
+        cv2.putText(frame, f"FPS: {fps:.1f}", (20, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
 
         cv2.imshow(window, frame)
         if cv2.waitKey(1) == ord("q"):
             break
-
-    if frames:
-        print(f"\nPriemerné FPS: {total_fps / frames:.2f}\n")
 
     cap.release()
     cv2.destroyAllWindows()
