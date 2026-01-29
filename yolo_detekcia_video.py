@@ -111,11 +111,11 @@ def hand_up(k):
         right = k[KP["rwri"], 1] < sy - 30
 
         if left and right:
-            return "BOTH HANDS"
+            return "BOTH-HANDS"
         if left:
-            return "LEFT HAND"
+            return "LEFT-HAND"
         if right:
-            return "RIGHT HAND"
+            return "RIGHT-HAND"
         return None
     except:
         return None
