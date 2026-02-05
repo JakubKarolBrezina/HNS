@@ -131,8 +131,4 @@ Presnosť detekcie závisí od hardvéru, kamery a svetelných podmienok
 Odhady vzdialenosti a výšky sú orientačné
 
 
-- 📚 **akademickejšiu verziu (bakalárka / semestrálka)**  
-- 🧹 prečistiť názvy priečinkov a README konzistenciu  
-- 🧾 doplniť **ciele projektu alebo zadanie**
 
-stačí povedať – toto máš už fakt veľmi dobre spravené 💪
