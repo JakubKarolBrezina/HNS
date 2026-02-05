@@ -1,31 +1,54 @@
-# MediaPipe Pose Estimation
+# Computer Vision – YOLO Object Detection & MediaPipe Pose Estimation
 
-This project uses **Google MediaPipe Pose Landmarker** to detect and track
-human body landmarks in real time from a webcam or video file.
+This project demonstrates two computer vision applications:
+1. **Object Detection using YOLO (You Only Look Once)**
+2. **Human Pose Estimation using Google MediaPipe Pose Landmarker**
 
-The application provides real-time pose estimation and basic human posture analysis.
-
----
-
-## Features
-
-The application can:
-- detect multiple people
-- draw a full body skeleton using pose landmarks
-- estimate distance from the camera
-- estimate approximate person height
-- detect raised left and right hand
-- work in low-light conditions
-- display real-time FPS and average FPS
+Both applications work with images, videos, or real-time camera input and are intended
+for educational and experimental purposes.
 
 ---
 
-## Requirements
+## 1. Project Overview
 
-- Python 3.9 or newer
+### YOLO Object Detection
+YOLO is used for real-time object detection. The application detects common objects
+and people in images, videos, or webcam streams using pretrained models.
+
+### MediaPipe Pose Estimation
+MediaPipe Pose is used to detect and track human body landmarks in real time.
+The application visualizes a full body skeleton and estimates basic physical attributes.
+
+---
+
+## 2. Features
+
+### YOLO Object Detection
+- object and person detection
+- image, video, and webcam support
+- real-time inference
+- bounding boxes with class labels and confidence scores
+
+### MediaPipe Pose Estimation
+- detection of multiple people
+- tracking of 33 human body landmarks
+- full body skeleton visualization
+- raised left and right hand detection
+- approximate distance from camera estimation
+- approximate person height estimation
+- real-time FPS and average FPS display
+- works in low-light conditions
+
+---
+
+## 3. System Requirements
+
+### Software
+- Python **3.9 or newer**
 - pip (Python package manager)
 
-### Python libraries
+### Required Python Libraries
+- ultralytics
 - mediapipe
 - opencv-python
 - numpy
@@ -33,10 +56,10 @@ The application can:
 
 ---
 
-## Installation
+## 4. Setup Instructions
 
-Clone the repository and install required dependencies:
-
+### Step 1 – Check Python installation
 ```bash
-pip install mediapipe opencv-python numpy requests
+python --version
+
 
