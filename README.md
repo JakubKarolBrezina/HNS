@@ -1,64 +1,63 @@
-# Computer Vision Detection Algorithms
+# Detekčné algoritmy počítačového videnia
 
-This repository contains multiple computer vision projects focused on
-**human detection, object detection, and pose estimation**.
-The implementations are based on modern state-of-the-art libraries such as
-**YOLO (Ultralytics)** and **Google MediaPipe**.
+Tento repozitár obsahuje viacero projektov z oblasti **počítačového videnia**,
+zameraných na **detekciu objektov, detekciu ľudí a odhad pózy človeka**.
+Implementácie využívajú moderné knižnice **YOLO (Ultralytics)** a **Google MediaPipe**.
 
-The repository is intended for educational, experimental, and research purposes.
-
----
-
-## Repository Overview
-
-The repository consists of several independent modules, each focusing on a specific
-computer vision task:
-
-- **YOLO Object Detection** – real-time object and person detection
-- **MediaPipe Pose Estimation** – real-time human pose landmark detection
-- **Models** – pretrained models used by the applications
-- **Test** – testing and experimental scripts
-- **Documentation** – supporting documents related to the project
-
-Each module can be set up and run independently.
+Repozitár je určený na **vzdelávacie, experimentálne a školské účely**.
 
 ---
 
-## Repository Structure
+## Prehľad repozitára
+
+Repozitár je rozdelený na niekoľko samostatných modulov, pričom každý rieši
+konkrétnu úlohu z oblasti počítačového videnia:
+
+- **YOLO – detekcia objektov a osôb**
+- **MediaPipe – odhad pózy človeka**
+- **Models – predtrénované modely**
+- **Test – testovacie a experimentálne súbory**
+- **Dokumentácia – podporné materiály k projektu**
+
+Každý modul je možné nastaviť a spustiť samostatne.
+
+---
+
+## Štruktúra repozitára
 
 ```text
 .
-├── DetAlgo/                 # Documentation and project-related materials
-├── mediapipe/               # MediaPipe Pose Estimation module
-│   └── README.md            # Detailed setup and usage for MediaPipe
-├── yolo/                    # YOLO Object Detection module
-│   └── README.md            # Detailed setup and usage for YOLO
-├── models/                  # Pretrained models
-├── test/                    # Test and experimental files
-├── pose_landmarker_full.task# MediaPipe pose model
-└── README.md                # Main repository documentation
-System Requirements
-Software
-Python 3.9 or newer
+├── DetAlgo/                   # Dokumentácia a projektové materiály
+├── mediapipe/                 # Modul MediaPipe – odhad pózy človeka
+│   └── README.md              # Detailný návod pre MediaPipe
+├── yolo/                      # Modul YOLO – detekcia objektov
+│   └── README.md              # Detailný návod pre YOLO
+├── models/                    # Predtrénované modely
+├── test/                      # Testovacie a experimentálne súbory
+├── pose_landmarker_full.task  # Model MediaPipe Pose Landmarker
+└── README.md                  # Hlavný README súbor repozitára
+Systémové požiadavky
+Softvér
+Python 3.9 alebo novší
 
-pip (Python package manager)
+pip (správca balíkov pre Python)
 
-Supported Platforms
+Podporované platformy
 Windows
 
 Linux
 
 macOS
 
-Global Setup Instructions
-1. Check Python installation
+Globálny postup nastavenia (Setup)
+1. Overenie inštalácie Pythonu
 python --version
-If Python is not installed, download it from:
+Ak Python nie je nainštalovaný, stiahni ho z:
 https://www.python.org/downloads/
 
-2. Create a virtual environment (recommended)
+2. Vytvorenie virtuálneho prostredia (odporúčané)
 python -m venv venv
-Activate the virtual environment:
+Aktivácia virtuálneho prostredia:
 
 Windows
 
@@ -66,87 +65,68 @@ venv\Scripts\activate
 Linux / macOS
 
 source venv/bin/activate
-3. Install common dependencies
-Some modules use different libraries. To install all required dependencies:
+3. Inštalácia potrebných knižníc
+Na inštaláciu všetkých knižníc používaných v projekte:
 
 pip install ultralytics mediapipe opencv-python numpy requests
-Modules
-1. YOLO Object Detection
-The YOLO module is used for real-time object and person detection using
-pretrained YOLO models.
+Moduly projektu
+1. YOLO – Detekcia objektov
+Modul YOLO slúži na detekciu objektov a ľudí v obrazoch, videách
+alebo v reálnom čase pomocou webkamery.
 
-Location:
+Umiestnenie:
 
 /yolo
-Capabilities:
+Funkcionalita:
 
-image, video, and webcam detection
+detekcia objektov a osôb
 
-bounding boxes with class labels
+spracovanie obrázkov, videí a webkamery
 
-real-time inference
+ohraničujúce boxy s názvom triedy a pravdepodobnosťou
 
-Detailed setup and usage instructions are available in:
+Podrobný návod na nastavenie a spustenie sa nachádza v súbore:
 
 yolo/README.md
-2. MediaPipe Pose Estimation
-The MediaPipe module performs real-time human pose estimation and landmark tracking.
+2. MediaPipe – Odhad pózy človeka
+Modul MediaPipe slúži na detekciu a sledovanie pózy človeka v reálnom čase.
 
-Location:
+Umiestnenie:
 
 /mediapipe
-Capabilities:
+Funkcionalita:
 
-detection of multiple people
+detekcia viacerých osôb
 
-full body skeleton visualization
+sledovanie 33 bodov tela
 
-hand raise detection
+vykreslenie kostry tela
 
-distance and height estimation
+detekcia zdvihnutej ľavej a pravej ruky
 
-real-time FPS monitoring
+odhad vzdialenosti od kamery
 
-Detailed setup and usage instructions are available in:
+odhad výšky osoby
+
+zobrazenie FPS v reálnom čase
+
+Podrobný návod sa nachádza v súbore:
 
 mediapipe/README.md
-Models
-The models directory contains pretrained models required by the applications.
+Modely
+Priečinok models obsahuje predtrénované modely, ktoré sú využívané
+jednotlivými modulmi.
 
 /models
-models are loaded automatically by the scripts
+modely sa načítavajú automaticky
 
-no manual configuration is required
+nie je potrebná manuálna konfigurácia
 
-Test Directory
-The test directory contains experimental scripts and testing files used
-during development.
+Testovanie
+Priečinok test obsahuje testovacie a experimentálne súbory použité
+počas vývoja projektu.
 
 /test
-Notes
-Each module can be executed independently
-
-Models are downloaded or loaded automatically
-
-Performance depends on hardware and lighting conditions
-
-Some estimations (distance, height) are approximate
-
-License
-This repository is intended for educational and experimental purposes only.
-
-
----
-
-## ✅ Prečo je toto README správne
-
-✔️ vysvetľuje celý repozitár  
-✔️ jasne popisuje štruktúru  
-✔️ má globálny setup  
-✔️ odkazuje na pod-README  
-✔️ profesionálne, prehľadné, obhájiteľné  
-
-Ak chceš:
 - 📚 **akademickejšiu verziu (bakalárka / semestrálka)**  
 - 🧹 prečistiť názvy priečinkov a README konzistenciu  
 - 🧾 doplniť **ciele projektu alebo zadanie**
