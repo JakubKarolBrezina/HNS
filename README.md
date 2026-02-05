@@ -1,25 +1,25 @@
 # Detekčné algoritmy počítačového videnia
 
-Tento repozitár obsahuje viacero projektov z oblasti **počítačového videnia**,
-zameraných na **detekciu objektov, detekciu ľudí a odhad pózy človeka**.
-Implementácie využívajú moderné knižnice **YOLO (Ultralytics)** a **Google MediaPipe**.
+Tento repozitár obsahuje viacero projektov z oblasti počítačového videnia,
+zameraných na detekciu objektov, detekciu ľudí a odhad pózy človeka.
+Implementácie využívajú knižnice YOLO (Ultralytics) a Google MediaPipe.
 
-Repozitár je určený na **vzdelávacie, experimentálne a školské účely**.
+Repozitár je určený na vzdelávacie, experimentálne a školské účely.
 
 ---
 
 ## Prehľad repozitára
 
-Repozitár je rozdelený na niekoľko samostatných modulov, pričom každý rieši
-konkrétnu úlohu z oblasti počítačového videnia:
+Repozitár je rozdelený na samostatné moduly, pričom každý modul rieši konkrétnu
+úlohu z oblasti počítačového videnia:
 
-- **YOLO – detekcia objektov a osôb**
-- **MediaPipe – odhad pózy človeka**
-- **Models – predtrénované modely**
-- **Test – testovacie a experimentálne súbory**
-- **Dokumentácia – podporné materiály k projektu**
+- YOLO – detekcia objektov a osôb
+- MediaPipe – odhad pózy človeka
+- Models – predtrénované modely
+- Test – testovacie a experimentálne súbory
+- Dokumentácia – podporné materiály k projektu
 
-Každý modul je možné nastaviť a spustiť samostatne.
+Každý modul je možné nastaviť a spustiť nezávisle.
 
 ---
 
@@ -37,44 +37,42 @@ Každý modul je možné nastaviť a spustiť samostatne.
 ├── pose_landmarker_full.task  # Model MediaPipe Pose Landmarker
 └── README.md                  # Hlavný README súbor repozitára
 Systémové požiadavky
-Softvér
 Python 3.9 alebo novší
 
 pip (správca balíkov pre Python)
 
-Podporované platformy
+Podporované operačné systémy:
+
 Windows
 
 Linux
 
 macOS
 
-Globálny postup nastavenia (Setup)
-1. Overenie inštalácie Pythonu
+Nastavenie prostredia (Setup)
+Overenie inštalácie Pythonu
 python --version
-Ak Python nie je nainštalovaný, stiahni ho z:
+V prípade, že Python nie je nainštalovaný, je možné ho stiahnuť z:
 https://www.python.org/downloads/
 
-2. Vytvorenie virtuálneho prostredia (odporúčané)
+Vytvorenie virtuálneho prostredia
 python -m venv venv
 Aktivácia virtuálneho prostredia:
 
-Windows
+Windows:
 
 venv\Scripts\activate
-Linux / macOS
+Linux / macOS:
 
 source venv/bin/activate
-3. Inštalácia potrebných knižníc
-Na inštaláciu všetkých knižníc používaných v projekte:
-
+Inštalácia potrebných knižníc
 pip install ultralytics mediapipe opencv-python numpy requests
 Moduly projektu
-1. YOLO – Detekcia objektov
-Modul YOLO slúži na detekciu objektov a ľudí v obrazoch, videách
-alebo v reálnom čase pomocou webkamery.
+YOLO – Detekcia objektov
+Modul YOLO slúži na detekciu objektov a osôb v obrazoch, videách alebo
+v reálnom čase pomocou webkamery.
 
-Umiestnenie:
+Umiestnenie modulu:
 
 /yolo
 Funkcionalita:
@@ -88,17 +86,17 @@ ohraničujúce boxy s názvom triedy a pravdepodobnosťou
 Podrobný návod na nastavenie a spustenie sa nachádza v súbore:
 
 yolo/README.md
-2. MediaPipe – Odhad pózy človeka
+MediaPipe – Odhad pózy človeka
 Modul MediaPipe slúži na detekciu a sledovanie pózy človeka v reálnom čase.
 
-Umiestnenie:
+Umiestnenie modulu:
 
 /mediapipe
 Funkcionalita:
 
 detekcia viacerých osôb
 
-sledovanie 33 bodov tela
+sledovanie 33 bodov ľudského tela
 
 vykreslenie kostry tela
 
@@ -114,19 +112,25 @@ Podrobný návod sa nachádza v súbore:
 
 mediapipe/README.md
 Modely
-Priečinok models obsahuje predtrénované modely, ktoré sú využívané
-jednotlivými modulmi.
+Priečinok models obsahuje predtrénované modely používané jednotlivými modulmi.
 
 /models
-modely sa načítavajú automaticky
-
-nie je potrebná manuálna konfigurácia
+Modely sa načítavajú automaticky a nevyžadujú manuálnu konfiguráciu.
 
 Testovanie
-Priečinok test obsahuje testovacie a experimentálne súbory použité
-počas vývoja projektu.
+Priečinok test obsahuje testovacie a experimentálne súbory použité počas vývoja.
 
 /test
+Poznámky
+Jednotlivé moduly je možné spúšťať samostatne
+
+Modely sa načítavajú alebo sťahujú automaticky
+
+Presnosť detekcie závisí od hardvéru, kamery a svetelných podmienok
+
+Odhady vzdialenosti a výšky sú orientačné
+
+
 - 📚 **akademickejšiu verziu (bakalárka / semestrálka)**  
 - 🧹 prečistiť názvy priečinkov a README konzistenciu  
 - 🧾 doplniť **ciele projektu alebo zadanie**
