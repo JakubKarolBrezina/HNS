@@ -1,40 +1,28 @@
-# Computer Vision – YOLO Object Detection & MediaPipe Pose Estimation
+# MediaPipe Pose Estimation
 
-This project demonstrates two computer vision applications:
-1. **Object Detection using YOLO (You Only Look Once)**
-2. **Human Pose Estimation using Google MediaPipe Pose Landmarker**
-
-Both applications work with images, videos, or real-time camera input and are intended
-for educational and experimental purposes.
+This project performs real-time human pose estimation using
+**Google MediaPipe Pose Landmarker**.  
+It detects and tracks human body landmarks from a webcam or a video file.
 
 ---
 
-## 1. Project Overview
+## 1. Project Description
 
-### YOLO Object Detection
-YOLO is used for real-time object detection. The application detects common objects
-and people in images, videos, or webcam streams using pretrained models.
-
-### MediaPipe Pose Estimation
-MediaPipe Pose is used to detect and track human body landmarks in real time.
-The application visualizes a full body skeleton and estimates basic physical attributes.
+The application detects human body pose in real time and visualizes
+a full body skeleton based on detected landmarks.
+It also provides basic posture-related information such as distance,
+height estimation, and hand position detection.
 
 ---
 
 ## 2. Features
 
-### YOLO Object Detection
-- object and person detection
-- image, video, and webcam support
-- real-time inference
-- bounding boxes with class labels and confidence scores
 
-### MediaPipe Pose Estimation
 - detection of multiple people
 - tracking of 33 human body landmarks
-- full body skeleton visualization
+- real-time full body skeleton visualization
 - raised left and right hand detection
-- approximate distance from camera estimation
+- approximate distance from the camera estimation
 - approximate person height estimation
 - real-time FPS and average FPS display
 - works in low-light conditions
@@ -48,7 +36,6 @@ The application visualizes a full body skeleton and estimates basic physical att
 - pip (Python package manager)
 
 ### Required Python Libraries
-- ultralytics
 - mediapipe
 - opencv-python
 - numpy
@@ -61,5 +48,6 @@ The application visualizes a full body skeleton and estimates basic physical att
 ### Step 1 – Check Python installation
 ```bash
 python --version
+
 
 
