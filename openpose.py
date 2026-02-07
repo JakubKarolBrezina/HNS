@@ -33,7 +33,7 @@ print(OPENPOSE_EXE)
 # =====================================================
 print("\n0 - kamera notebooku")
 print("1 - externá kamera")
-CAMERA_INDEX = input("Vyber kameru: ")
+CAMERA_INDEX = input("kamera: ")
 
 # =====================================================
 # OPENPOSE PRÍKAZ – BODY + FACE (ako na obrázku)
