@@ -145,7 +145,7 @@ def main():
                 draw_skeleton(frame,k,W,H)
 
         cv2.imshow("MediaPipe Pose", frame)
-        if cv2.waitKey(1)&0xFF in (ord('Q'),ord('q')):
+        if cv2.waitKey(1)&0xFF in (ord('q'),ord('Q')):
             break
 
     cap.release()
