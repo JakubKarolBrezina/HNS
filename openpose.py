@@ -3,30 +3,26 @@ import sys
 import subprocess
 
 # =====================================================
-# ROOT – sem daj LEN priečinok, kde máš rozbalený OpenPose ZIP
-# (nie bin, nie openpose/bin, ale koreň balíka)
+# OPENPOSE ROOT (KOREŇOVÝ PRIEČINOK)
 # =====================================================
-OPENPOSE_ROOT = r"C:\Users\jakub\Downloads\openpose-1.7.0-binaries-win64-cpu-python3.7-flir-3d"
+OPENPOSE_ROOT = r"C:\Users\jakub\Downloads\openpose-1.7.0-binaries-win64-cpu-python3.7-flir-3d\openpose"
+
+OPENPOSE_EXE = os.path.join(OPENPOSE_ROOT, "bin", "OpenPoseDemo.exe")
+MODEL_FOLDER = os.path.join(OPENPOSE_ROOT, "models")
 
 # =====================================================
-# AUTOMATICKÉ HĽADANIE OpenPoseDemo.exe
+# KONTROLY
 # =====================================================
-def find_openpose_exe(root):
-    for root_dir, dirs, files in os.walk(root):
-        if "OpenPoseDemo.exe" in files:
-            return os.path.join(root_dir, "OpenPoseDemo.exe")
-    return None
-
-OPENPOSE_EXE = find_openpose_exe(OPENPOSE_ROOT)
-
-if OPENPOSE_EXE is None:
-    print("❌ OpenPoseDemo.exe sa nenašiel.")
-    print("Skontroloval som celý priečinok:")
-    print(OPENPOSE_ROOT)
+if not os.path.exists(OPENPOSE_EXE):
+    print("❌ OpenPoseDemo.exe sa nenašiel")
     sys.exit(1)
 
-print("✅ OpenPoseDemo.exe nájdený:")
-print(OPENPOSE_EXE)
+if not os.path.exists(MODEL_FOLDER):
+    print("❌ models folder sa nenašiel")
+    sys.exit(1)
+
+print("✅ OpenPoseDemo.exe:", OPENPOSE_EXE)
+print("✅ models:", MODEL_FOLDER)
 
 # =====================================================
 # VÝBER KAMERY
@@ -36,12 +32,14 @@ print("1 - externá kamera")
 CAMERA_INDEX = input("kamera: ")
 
 # =====================================================
-# OPENPOSE PRÍKAZ – BODY + FACE (ako na obrázku)
+# OPENPOSE PRÍKAZ – OVERENÝ
 # =====================================================
 cmd = [
     OPENPOSE_EXE,
     "--camera", CAMERA_INDEX,
+    "--camera_resolution", "640x480",
     "--model_pose", "BODY_25",
+    "--model_folder", MODEL_FOLDER,
     "--face",
     "--display", "1",
     "--render_pose", "1"
@@ -51,6 +49,10 @@ print("\n▶ Spúšťam OpenPose...")
 print("CMD:", " ".join(cmd))
 
 # =====================================================
-# SPUSTENIE
+# SPUSTENIE – KĽÚČOVÉ ČASTI
 # =====================================================
-subprocess.Popen(cmd)
+subprocess.Popen(
+    cmd,
+    cwd=OPENPOSE_ROOT,              # 🔥 KRITICKÉ
+    creationflags=subprocess.CREATE_NEW_CONSOLE
+)
