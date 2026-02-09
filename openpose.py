@@ -1,9 +1,10 @@
 import os
 import sys
 import subprocess
+import time
 
 # =====================================================
-# OPENPOSE ROOT (KOREŇOVÝ PRIEČINOK)
+# OPENPOSE ROOT
 # =====================================================
 OPENPOSE_ROOT = r"C:\Users\jakub\Downloads\openpose-1.7.0-binaries-win64-cpu-python3.7-flir-3d\openpose"
 
@@ -32,7 +33,7 @@ print("1 - externá kamera")
 CAMERA_INDEX = input("kamera: ")
 
 # =====================================================
-# OPENPOSE PRÍKAZ – OVERENÝ
+# OPENPOSE PRÍKAZ
 # =====================================================
 cmd = [
     OPENPOSE_EXE,
@@ -47,12 +48,22 @@ cmd = [
 
 print("\n▶ Spúšťam OpenPose...")
 print("CMD:", " ".join(cmd))
+print("\n🟢 OpenPose by sa mal otvoriť v novom okne.")
 
 # =====================================================
-# SPUSTENIE – KĽÚČOVÉ ČASTI
+# SPUSTENIE + ČAKANIE
 # =====================================================
-subprocess.Popen(
+process = subprocess.Popen(
     cmd,
-    cwd=OPENPOSE_ROOT,              # 🔥 KRITICKÉ
+    cwd=OPENPOSE_ROOT,
     creationflags=subprocess.CREATE_NEW_CONSOLE
 )
+
+print("\n⏳ Python teraz čaká. Zatvor OpenPose okno alebo stlač CTRL+C.\n")
+
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("\n⛔ Ukončujem OpenPose...")
+    process.terminate()
