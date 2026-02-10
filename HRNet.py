@@ -19,7 +19,7 @@ CAMERA_INDEX = 0   # 0 = interná kamera, 1 = externá USB kamera
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # ==============================
-# LOAD MODELOV
+# LOAD
 # ==============================
 pose_model = init_model(POSE_CONFIG, POSE_CHECKPOINT, device=DEVICE)
 det_model = init_detector(DET_CONFIG, DET_CHECKPOINT, device=DEVICE)
