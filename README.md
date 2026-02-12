@@ -1,42 +1,56 @@
-# Detekčné algoritmy počítačového videnia
+Detekčné algoritmy počítačového videnia
 
-Tento repozitár obsahuje viacero projektov z oblasti počítačového videnia,
-zameraných na detekciu objektov, detekciu ľudí a odhad pózy človeka.
-Implementácie využívajú knižnice YOLO (Ultralytics) a Google MediaPipe.
+Tento repozitár obsahuje viacero modulov z oblasti počítačového videnia, zameraných najmä na:
 
-Repozitár je určený na vzdelávacie, experimentálne a školské účely.
+detekciu objektov a osôb
 
----
+detekciu ľudí
 
-## Prehľad repozitára
+odhad pózy človeka (pose estimation)
 
-Repozitár je rozdelený na samostatné moduly, pričom každý modul rieši konkrétnu
-úlohu z oblasti počítačového videnia:
+Implementácie využívajú moderné knižnice a frameworky ako YOLO (Ultralytics), Google MediaPipe, HRNet a OpenPose.
 
-- YOLO – detekcia objektov a osôb
-- MediaPipe – odhad pózy človeka
-- Models – predtrénované modely
-- Test – testovacie a experimentálne súbory
-- Dokumentácia – podporné materiály k projektu
+Repozitár je určený predovšetkým na vzdelávacie, experimentálne a školské účely, no jednotlivé moduly je možné ďalej rozširovať aj pre praktické použitie.
+
+Prehľad repozitára
+
+Repozitár je rozdelený na samostatné moduly, pričom každý modul rieši konkrétny prístup alebo algoritmus z oblasti počítačového videnia:
+
+YOLO – detekcia objektov a osôb
+
+MediaPipe – odhad pózy človeka v reálnom čase
+
+HRNet – presný odhad pózy človeka pomocou hlbokých neurónových sietí
+
+OpenPose – viac-osobová detekcia pózy a kostry tela
+
+Models – predtrénované modely používané jednotlivými modulmi
+
+Test – testovacie a experimentálne súbory
+
+DetAlgo – dokumentácia, poznámky a projektové materiály
 
 Každý modul je možné nastaviť a spustiť nezávisle.
 
----
-
-## Štruktúra repozitára
-
-```text
+Štruktúra repozitára
 .
+├── .idea/                     # Konfiguračné súbory vývojového prostredia (IDE)
 ├── DetAlgo/                   # Dokumentácia a projektové materiály
+├── HRNet/                     # Modul HRNet – odhad pózy človeka
+│   └── HRNet.py
 ├── mediapipe/                 # Modul MediaPipe – odhad pózy človeka
-│   └── README.md              # Detailný návod pre MediaPipe
-├── yolo/                      # Modul YOLO – detekcia objektov
-│   └── README.md              # Detailný návod pre YOLO
+│   └── mediapipe_pose.py
 ├── models/                    # Predtrénované modely
+│   └── pose_landmarker_full.task
+├── openpose/                  # Modul OpenPose – detekcia kostry tela
+│   └── openpose.py
 ├── test/                      # Testovacie a experimentálne súbory
-├── pose_landmarker_full.task  # Model MediaPipe Pose Landmarker
+├── yolo/                      # Modul YOLO – detekcia objektov
+│   └── README.md
 └── README.md                  # Hlavný README súbor repozitára
+
 Systémové požiadavky
+
 Python 3.9 alebo novší
 
 pip (správca balíkov pre Python)
@@ -52,49 +66,73 @@ macOS
 Nastavenie prostredia (Setup)
 Overenie inštalácie Pythonu
 python --version
-V prípade, že Python nie je nainštalovaný, je možné ho stiahnuť z:
+
+
+Ak Python nie je nainštalovaný, je možné ho stiahnuť z:
 https://www.python.org/downloads/
 
 Vytvorenie virtuálneho prostredia
 python -m venv venv
-Aktivácia virtuálneho prostredia:
 
-Windows:
+Aktivácia virtuálneho prostredia
+
+Windows
 
 venv\Scripts\activate
-Linux / macOS:
+
+
+Linux / macOS
 
 source venv/bin/activate
+
 Inštalácia potrebných knižníc
 pip install ultralytics mediapipe opencv-python numpy requests
+
+
+(V závislosti od modulu môžu byť potrebné aj ďalšie knižnice – viď README v konkrétnom module.)
+
 Moduly projektu
-YOLO – Detekcia objektov
-Modul YOLO slúži na detekciu objektov a osôb v obrazoch, videách alebo
-v reálnom čase pomocou webkamery.
+YOLO – Detekcia objektov a osôb
+
+Modul YOLO slúži na detekciu objektov a osôb v:
+
+obrázkoch
+
+videách
+
+reálnom čase pomocou webkamery
 
 Umiestnenie modulu:
 
 /yolo
+
+
 Funkcionalita:
 
 detekcia objektov a osôb
 
-spracovanie obrázkov, videí a webkamery
+spracovanie obrázkov, videí a live streamu
 
-ohraničujúce boxy s názvom triedy a pravdepodobnosťou
+vykreslenie ohraničujúcich boxov
+
+zobrazenie názvu triedy a pravdepodobnosti
 
 Podrobný návod na nastavenie a spustenie sa nachádza v súbore:
 
 yolo/README.md
+
 MediaPipe – Odhad pózy človeka
+
 Modul MediaPipe slúži na detekciu a sledovanie pózy človeka v reálnom čase.
 
 Umiestnenie modulu:
 
 /mediapipe
+
+
 Funkcionalita:
 
-detekcia viacerých osôb
+detekcia jednej alebo viacerých osôb
 
 sledovanie 33 bodov ľudského tela
 
@@ -108,27 +146,79 @@ odhad výšky osoby
 
 zobrazenie FPS v reálnom čase
 
-Podrobný návod sa nachádza v súbore:
+HRNet – Odhad pózy človeka
 
-mediapipe/README.md
+HRNet je pokročilý model pre presný odhad pózy človeka, vhodný najmä na analytické a výskumné účely.
+
+Umiestnenie modulu:
+
+/HRNet
+
+
+Funkcionalita:
+
+presná detekcia kĺbov tela
+
+vysoká stabilita výstupu
+
+vhodné pre statické aj dynamické scény
+
+OpenPose – Detekcia kostry tela
+
+OpenPose umožňuje detekciu pózy viacerých osôb naraz a detailné sledovanie kostry tela.
+
+Umiestnenie modulu:
+
+/openpose
+
+
+Funkcionalita:
+
+viac-osobová detekcia pózy
+
+detekcia kĺbov a končatín
+
+vizualizácia kostry tela
+
 Modely
+
 Priečinok models obsahuje predtrénované modely používané jednotlivými modulmi.
 
 /models
-Modely sa načítavajú automaticky a nevyžadujú manuálnu konfiguráciu.
+
+
+Modely sa:
+
+načítavajú automaticky
+
+nevyžadujú manuálnu konfiguráciu
 
 Testovanie
-Priečinok test obsahuje testovacie a experimentálne súbory použité počas vývoja.
+
+Priečinok test obsahuje:
+
+testovacie skripty
+
+experimentálne súbory
+
+pomocné testy použité počas vývoja
 
 /test
+
 Poznámky
+
 Jednotlivé moduly je možné spúšťať samostatne
 
 Modely sa načítavajú alebo sťahujú automaticky
 
-Presnosť detekcie závisí od hardvéru, kamery a svetelných podmienok
+Presnosť detekcie závisí od:
+
+hardvéru
+
+kvality kamery
+
+svetelných podmienok
 
 Odhady vzdialenosti a výšky sú orientačné
-
 
 
