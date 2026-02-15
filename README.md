@@ -1,6 +1,6 @@
 Detekčné algoritmy počítačového videnia
 
-Tento repozitár obsahuje implementácie moderných algoritmov počítačového videnia so zameraním na:
+Tento repozitár obsahuje viacero modulov z oblasti počítačového videnia, zameraných najmä na:
 
 detekciu objektov a osôb
 
@@ -8,31 +8,37 @@ detekciu ľudí
 
 odhad pózy človeka (pose estimation)
 
-Projekt je určený primárne na vzdelávacie, experimentálne a školské účely. Jednotlivé moduly je však možné ďalej rozširovať a adaptovať pre praktické použitie.
+Implementácie využívajú moderné knižnice a frameworky ako YOLO (Ultralytics), Google MediaPipe, HRNet a OpenPose.
 
-Použité technológie
+Repozitár je určený predovšetkým na vzdelávacie, experimentálne a školské účely. Jednotlivé moduly je možné ďalej rozširovať aj pre praktické použitie.
 
-YOLO (Ultralytics)
+Prehľad repozitára
 
-Google MediaPipe
+Repozitár je rozdelený na samostatné moduly, pričom každý modul rieši konkrétny prístup alebo algoritmus z oblasti počítačového videnia:
 
-HRNet
+YOLO – detekcia objektov a osôb
 
-OpenPose
+MediaPipe – odhad pózy človeka v reálnom čase
 
-Python 3.9+
+HRNet – presný odhad pózy pomocou hlbokých neurónových sietí
 
-OpenCV
+OpenPose – viac-osobová detekcia pózy a kostry tela
 
-NumPy
+Models – predtrénované modely používané jednotlivými modulmi
+
+Test – testovacie a experimentálne súbory
+
+DetAlgo – dokumentácia, poznámky a projektové materiály
+
+Každý modul je možné nastaviť a spustiť nezávisle.
 
 Štruktúra repozitára
 .
-├── .idea/                     # Konfiguračné súbory vývojového prostredia
+├── .idea/                     # Konfiguračné súbory vývojového prostredia (IDE)
 ├── DetAlgo/                   # Dokumentácia a projektové materiály
 ├── HRNet/                     # Modul HRNet – odhad pózy človeka
 │   └── HRNet.py
-├── mediapipe/                 # Modul MediaPipe – odhad pózy
+├── mediapipe/                 # Modul MediaPipe – odhad pózy človeka
 │   └── mediapipe_pose.py
 ├── models/                    # Predtrénované modely
 │   └── pose_landmarker_full.task
@@ -41,7 +47,7 @@ NumPy
 ├── test/                      # Testovacie a experimentálne súbory
 ├── yolo/                      # Modul YOLO – detekcia objektov
 │   └── README.md
-└── README.md                  # Hlavná dokumentácia
+└── README.md                  # Hlavný README súbor repozitára
 
 Systémové požiadavky
 
@@ -57,19 +63,18 @@ Linux
 
 macOS
 
-Nastavenie prostredia
-1. Overenie inštalácie Pythonu
+Nastavenie prostredia (Setup)
+Overenie inštalácie Pythonu
 python --version
 
 
 Ak Python nie je nainštalovaný, je možné ho stiahnuť z:
 https://www.python.org/downloads/
 
-2. Vytvorenie virtuálneho prostredia
+Vytvorenie virtuálneho prostredia
 python -m venv venv
 
-
-Aktivácia virtuálneho prostredia:
+Aktivácia virtuálneho prostredia
 
 Windows:
 
@@ -80,36 +85,50 @@ Linux / macOS:
 
 source venv/bin/activate
 
-3. Inštalácia závislostí
+Inštalácia potrebných knižníc
 pip install ultralytics mediapipe opencv-python numpy requests
 
 
-V závislosti od konkrétneho modulu môžu byť potrebné ďalšie knižnice. Podrobnosti sú uvedené v README jednotlivých modulov.
+V závislosti od konkrétneho modulu môžu byť potrebné aj ďalšie knižnice (pozri README v príslušnom module).
 
-Prehľad modulov
+Moduly projektu
 YOLO – Detekcia objektov a osôb
 
-Umiestnenie: /yolo
+Modul YOLO slúži na detekciu objektov a osôb v:
+
+obrázkoch
+
+videách
+
+reálnom čase pomocou webkamery
+
+Umiestnenie modulu:
+
+/yolo
+
 
 Funkcionalita:
 
 detekcia objektov a osôb
 
-spracovanie obrázkov
-
-spracovanie videí
-
-real-time detekcia pomocou webkamery
+spracovanie obrázkov, videí a live streamu
 
 vykreslenie ohraničujúcich boxov
 
 zobrazenie názvu triedy a pravdepodobnosti
 
-Podrobný návod na nastavenie a spustenie sa nachádza v súbore yolo/README.md.
+Podrobný návod na nastavenie a spustenie sa nachádza v súbore:
+
+yolo/README.md
 
 MediaPipe – Odhad pózy človeka
 
-Umiestnenie: /mediapipe
+Modul MediaPipe slúži na detekciu a sledovanie pózy človeka v reálnom čase.
+
+Umiestnenie modulu:
+
+/mediapipe
+
 
 Funkcionalita:
 
@@ -117,19 +136,24 @@ detekcia jednej alebo viacerých osôb
 
 sledovanie 33 bodov ľudského tela
 
-vizualizácia kostry tela
+vykreslenie kostry tela
 
 detekcia zdvihnutej ľavej a pravej ruky
 
-orientačný odhad vzdialenosti od kamery
+odhad vzdialenosti od kamery
 
-orientačný odhad výšky osoby
+odhad výšky osoby
 
 zobrazenie FPS v reálnom čase
 
-HRNet – Presný odhad pózy človeka
+HRNet – Odhad pózy človeka
 
-Umiestnenie: /HRNet
+HRNet je pokročilý model pre presný odhad pózy človeka, vhodný najmä na analytické a výskumné účely.
+
+Umiestnenie modulu:
+
+/HRNet
+
 
 Funkcionalita:
 
@@ -137,41 +161,49 @@ presná detekcia kĺbov tela
 
 vysoká stabilita výstupu
 
-vhodné pre analytické a výskumné účely
+vhodné pre statické aj dynamické scény
 
-použiteľné pre statické aj dynamické scény
+OpenPose – Detekcia kostry tela
 
-OpenPose – Viac-osobová detekcia pózy
+OpenPose umožňuje detekciu pózy viacerých osôb naraz a detailné sledovanie kostry tela.
 
-Umiestnenie: /openpose
+Umiestnenie modulu:
+
+/openpose
+
 
 Funkcionalita:
 
-detekcia viacerých osôb naraz
+viac-osobová detekcia pózy
 
-sledovanie kĺbov a končatín
+detekcia kĺbov a končatín
 
 vizualizácia kostry tela
 
 Modely
 
-Priečinok /models obsahuje predtrénované modely používané jednotlivými modulmi.
+Priečinok models obsahuje predtrénované modely používané jednotlivými modulmi.
 
-Modely:
+/models
 
-sa načítavajú automaticky,
 
-nevyžadujú manuálnu konfiguráciu.
+Modely sa:
+
+načítavajú automaticky
+
+nevyžadujú manuálnu konfiguráciu
 
 Testovanie
 
-Priečinok /test obsahuje:
+Priečinok test obsahuje:
 
-testovacie skripty,
+testovacie skripty
 
-experimentálne súbory,
+experimentálne súbory
 
-pomocné testy použité počas vývoja.
+pomocné testy použité počas vývoja
+
+/test
 
 Poznámky
 
@@ -179,7 +211,12 @@ Jednotlivé moduly je možné spúšťať samostatne.
 
 Modely sa načítavajú alebo sťahujú automaticky.
 
-Presnosť detekcie závisí od hardvéru, kvality kamery a svetelných podmienok.
+Presnosť detekcie závisí od:
+
+hardvéru
+
+kvality kamery
+
+svetelných podmienok
 
 Odhady vzdialenosti a výšky osoby sú orientačné.
-
