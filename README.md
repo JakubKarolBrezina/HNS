@@ -65,8 +65,6 @@ Každý modul je možné nastaviť a spustiť nezávisle.
 ## Nastavenie prostredia (Setup)
 
 ### 1. Overenie inštalácie Pythonu
-
-```bash
 python --version
 Ak Python nie je nainštalovaný, je možné ho stiahnuť z:
 https://www.python.org/downloads/
