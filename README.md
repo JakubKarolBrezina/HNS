@@ -65,128 +65,123 @@ Každý modul je možné nastaviť a spustiť nezávisle.
 ## Nastavenie prostredia (Setup)
 
 ### 1. Overenie inštalácie Pythonu
+`bash
 python --version
 Ak Python nie je nainštalovaný, je možné ho stiahnuť z:
 https://www.python.org/downloads/
 
-2. Vytvorenie virtuálneho prostredia
+### 2. Vytvorenie virtuálneho prostredia
 python -m venv venv
-Aktivácia virtuálneho prostredia
-Windows
 
+## Aktivácia virtuálneho prostredia
 venv\Scripts\activate
-Linux / macOS
 
+## Linux / macOS
 source venv/bin/activate
-3. Inštalácia potrebných knižníc
+
+### 3. Inštalácia potrebných knižníc
 pip install ultralytics mediapipe opencv-python numpy requests
+
 V závislosti od konkrétneho modulu môžu byť potrebné aj ďalšie knižnice (pozri README v príslušnom module).
 
-Moduly projektu
-YOLO – Detekcia objektov a osôb
-Modul YOLO slúži na detekciu objektov a osôb v:
+### Moduly projektu:
 
-obrázkoch
+## YOLO – Detekcia objektov a osôb
 
-videách
+# Modul YOLO slúži na detekciu objektov a osôb v:
 
-reálnom čase pomocou webkamery
+- obrázkoch
+- videách
+- reálnom čase pomocou webkamery
 
-Umiestnenie modulu:
-
+# Umiestnenie modulu:
 /yolo
-Funkcionalita
-detekcia objektov a osôb
 
-spracovanie obrázkov, videí a live streamu
+# Funkcionalita :
 
-vykreslenie ohraničujúcich boxov
+- detekcia objektov a osôb
+- spracovanie obrázkov, videí a live streamu
+- vykreslenie ohraničujúcich boxov
+- zobrazenie názvu triedy a pravdepodobnosti
 
-zobrazenie názvu triedy a pravdepodobnosti
-
-Podrobný návod na nastavenie a spustenie sa nachádza v súbore:
-
+# Podrobný návod na nastavenie a spustenie sa nachádza v súbore:
 yolo/README.md
-MediaPipe – Odhad pózy človeka
+
+## MediaPipe – Odhad pózy človeka
+
 Modul MediaPipe slúži na detekciu a sledovanie pózy človeka v reálnom čase.
 
-Umiestnenie modulu:
-
+# Umiestnenie modulu:
 /mediapipe
-Funkcionalita
-detekcia jednej alebo viacerých osôb
 
-sledovanie 33 bodov ľudského tela
+# Funkcionalita
 
-vykreslenie kostry tela
+- detekcia jednej alebo viacerých osôb
+- sledovanie 33 bodov ľudského tela
+- vykreslenie kostry tela
+- detekcia zdvihnutej ľavej a pravej ruky
+- odhad vzdialenosti od kamery
+- odhad výšky osoby
+- zobrazenie FPS v reálnom čase
 
-detekcia zdvihnutej ľavej a pravej ruky
+## HRNet – Odhad pózy človeka
 
-odhad vzdialenosti od kamery
-
-odhad výšky osoby
-
-zobrazenie FPS v reálnom čase
-
-HRNet – Odhad pózy človeka
 HRNet je pokročilý model pre presný odhad pózy človeka, vhodný najmä na analytické a výskumné účely.
 
-Umiestnenie modulu:
-
+# Umiestnenie modulu:
 /HRNet
-Funkcionalita
-presná detekcia kĺbov tela
 
-vysoká stabilita výstupu
+# Funkcionalita
 
-vhodné pre statické aj dynamické scény
+- presná detekcia kĺbov tela
+- vysoká stabilita výstupu
+- vhodné pre statické aj dynamické scény
 
-OpenPose – Detekcia kostry tela
+## OpenPose – Detekcia kostry tela
+
 OpenPose umožňuje detekciu pózy viacerých osôb naraz a detailné sledovanie kostry tela.
 
-Umiestnenie modulu:
-
+# Umiestnenie modulu:
 /openpose
-Funkcionalita
-viac-osobová detekcia pózy
 
-detekcia kĺbov a končatín
+# Funkcionalita
 
-vizualizácia kostry tela
+- viac-osobová detekcia pózy
+- detekcia kĺbov a končatín
+- vizualizácia kostry tela
 
-Modely
-Priečinok obsahujúci predtrénované modely:
+### Modely
 
+# Priečinok obsahujúci predtrénované modely:
 /models
-Modely:
 
-sa načítavajú automaticky
+## Modely:
 
-nevyžadujú manuálnu konfiguráciu
+- sa načítavajú automaticky
+- nevyžadujú manuálnu konfiguráciu
 
-Testovanie
+# Testovanie
+
 Priečinok obsahujúci testovacie a experimentálne súbory:
-
 /test
-Obsahuje:
 
-testovacie skripty
+## Obsahuje:
 
-experimentálne súbory
+- testovacie skripty
+- experimentálne súbory
+- pomocné testy použité počas vývoja
 
-pomocné testy použité počas vývoja
+### Poznámky
 
-Poznámky
-Jednotlivé moduly je možné spúšťať samostatne.
+- Jednotlivé moduly je možné spúšťať samostatne.
+- Modely sa načítavajú alebo sťahujú automaticky.
 
-Modely sa načítavajú alebo sťahujú automaticky.
+## Presnosť detekcie závisí od:
 
-Presnosť detekcie závisí od:
-
-hardvéru
-
-kvality kamery
-
-svetelných podmienok
+- hardvéru
+- kvality kamery
+- svetelných podmienok
 
 Odhady vzdialenosti a výšky osoby sú orientačné.
+
+ 
